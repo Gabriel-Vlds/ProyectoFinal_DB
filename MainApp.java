@@ -80,7 +80,13 @@ public class MainApp extends JFrame {
         form.add(cboCanal);
 
         form.add(new JLabel("Producto:"));
-        cboProducto = new JComboBox<>(new String[]{"Galleta", "Rol", "Brownie"}); // Opciones de productos
+        cboProducto = new JComboBox<>(new String[]{
+            "Rollo de Canela",
+            "Brownie",
+            "Galletas de Vainilla",
+            "Galleta Chispas Choc",
+            "Cuernito Dulce"
+        }); // Opciones de productos que coinciden con la base de datos
         form.add(cboProducto);
 
         form.add(new JLabel("Cantidad:"));
@@ -136,7 +142,7 @@ public class MainApp extends JFrame {
         top.add(btnCargarPedidos);
         top.add(btnCargarIngredientes);
 
-        modelPedidos = new DefaultTableModel(new String[]{"id_pedido", "cliente", "canal", "estado", "total", "fecha"}, 0);
+        modelPedidos = new DefaultTableModel(new String[]{"id_pedido", "cliente", "sucursal", "estado", "total", "fecha"}, 0);
         tblPedidos = new JTable(modelPedidos);
 
         modelIngredientes = new DefaultTableModel(new String[]{"id", "nombre", "unidad", "stock", "mínimo", "precio", "proveedor"}, 0);
@@ -202,39 +208,41 @@ public class MainApp extends JFrame {
     }
 
     private void crearPedido() {
-        String telefono = txtIdCliente.getText().trim();
-        String canal = (String) cboCanal.getSelectedItem();
-        int idProducto = Integer.parseInt(txtIdProducto.getText().trim());
-        int cantidad = Integer.parseInt(txtCantidad.getText().trim());
+        String telefono = txtIdCliente.getText().trim(); // Obtén el número de teléfono ingresado
+        String sucursal = (String) cboCanal.getSelectedItem(); // Obtén la sucursal seleccionada
+        String producto = (String) cboProducto.getSelectedItem(); // Obtén el producto seleccionado
+        int cantidad = Integer.parseInt(txtCantidad.getText().trim()); // Obtén la cantidad ingresada
 
         try (Connection cn = DB.getConnection()) {
             cn.setAutoCommit(false);
 
-            // Buscar ID del cliente usando el número de teléfono
-            int idCliente = 0;
-            try (PreparedStatement ps = cn.prepareStatement("SELECT id_cliente FROM Cliente WHERE telefono = ?")) {
-                ps.setString(1, telefono);
+            // Buscar ID del producto usando el nombre del producto
+            int idProducto = 0;
+            try (PreparedStatement ps = cn.prepareStatement("SELECT id_producto FROM Producto WHERE LOWER(nombre) = LOWER(?)")) {
+                ps.setString(1, producto.trim()); // Asegúrate de eliminar espacios adicionales
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        idCliente = rs.getInt(1);
+                        idProducto = rs.getInt(1);
                     } else {
-                        throw new SQLException("Cliente no encontrado con el teléfono proporcionado.");
+                        throw new SQLException("Producto no encontrado: " + producto);
                     }
                 }
             }
 
-            String sqlPedido = "INSERT INTO Pedido (id_cliente, id_empleado, fecha_pedido, canal, estado, total) " +
+            // Crear el pedido
+            String sqlPedido = "INSERT INTO Pedido (telefono_cliente, id_empleado, fecha_pedido, sucursal, estado, total) " +
                                "VALUES (?, 1, NOW(), ?, 'pendiente', 0.00)";
             int idPedido = 0;
             try (PreparedStatement ps = cn.prepareStatement(sqlPedido, Statement.RETURN_GENERATED_KEYS)) {
-                ps.setInt(1, idCliente);
-                ps.setString(2, canal);
+                ps.setString(1, telefono); // Guardar el número de teléfono directamente
+                ps.setString(2, sucursal); // Usar sucursal en lugar de canal
                 ps.executeUpdate();
                 try (ResultSet rs = ps.getGeneratedKeys()) {
                     if (rs.next()) idPedido = rs.getInt(1);
                 }
             }
 
+            // Obtener el precio unitario del producto
             BigDecimal precioUnit = BigDecimal.ZERO;
             try (PreparedStatement ps = cn.prepareStatement("SELECT precio_venta FROM Producto WHERE id_producto=?")) {
                 ps.setInt(1, idProducto);
@@ -244,6 +252,7 @@ public class MainApp extends JFrame {
                 }
             }
 
+            // Crear el detalle del pedido
             try (PreparedStatement ps = cn.prepareStatement(
                     "INSERT INTO DetallePedido (id_pedido, id_producto, cantidad, precio_unitario, subtotal) VALUES (?, ?, ?, ?, 0.00)")) {
                 ps.setInt(1, idPedido);
@@ -253,6 +262,7 @@ public class MainApp extends JFrame {
                 ps.executeUpdate();
             }
 
+            // Confirmar el pedido
             try (CallableStatement cs = cn.prepareCall("{CALL sp_confirmar_pedido(?)}")) {
                 cs.setInt(1, idPedido);
                 cs.execute();
@@ -267,8 +277,8 @@ public class MainApp extends JFrame {
 
     private void cargarPedidos() {
         modelPedidos.setRowCount(0);
-        String sql = "SELECT p.id_pedido, c.nombre AS cliente, p.canal, p.estado, p.total, p.fecha_pedido " +
-                     "FROM Pedido p JOIN Cliente c ON c.id_cliente = p.id_cliente " +
+        String sql = "SELECT p.id_pedido, p.telefono_cliente AS cliente, p.sucursal, p.estado, p.total, p.fecha_pedido " +
+                     "FROM Pedido p " +
                      "ORDER BY p.fecha_pedido DESC";
         try (Connection cn = DB.getConnection();
              PreparedStatement ps = cn.prepareStatement(sql);
@@ -277,7 +287,7 @@ public class MainApp extends JFrame {
                 modelPedidos.addRow(new Object[]{
                         rs.getInt("id_pedido"),
                         rs.getString("cliente"),
-                        rs.getString("canal"),
+                        rs.getString("sucursal"), // Usar sucursal en lugar de canal
                         rs.getString("estado"),
                         rs.getBigDecimal("total"),
                         rs.getTimestamp("fecha_pedido")
