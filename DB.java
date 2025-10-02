@@ -1,3 +1,4 @@
+// JDBC connection class
 
 // DB.java
 // Clase de conexión JDBC a MySQL con comentarios línea por línea
@@ -10,9 +11,9 @@ public class DB {
     // URL de conexión a MySQL (ajusta el puerto, host y schema si es necesario)
     // "useSSL=false" y "serverTimezone=UTC" ayudan a evitar advertencias de zona horaria/SSL
     private static final String URL = "jdbc:mysql://localhost:3306/proyectofinal?useSSL=false&serverTimezone=UTC";
-    // Usuario de MySQL 
+    // Usuario de MySQL (ajústalo a tu usuario real)
     private static final String USER = "root";
-    // Contraseña de MySQL 
+    // Contraseña de MySQL (ajústala a tu contraseña real)
     private static final String PASS = "Korova312";
 
     // Método estático para obtener una conexión abierta

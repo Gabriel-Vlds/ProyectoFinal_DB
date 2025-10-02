@@ -1,4 +1,3 @@
-
 // MainApp.java
 // App Swing con dos interfaces: "Hacer Pedido" y "Panel Admin (login + gestión)"
 // Comentarios línea por línea y SQL con PreparedStatement para seguridad.
@@ -12,6 +11,8 @@ import java.math.BigDecimal;                     // Para manejar precios de form
 
 public class MainApp extends JFrame {
     private JTabbedPane tabs;                    // Contenedor de pestañas
+    private JComboBox<String> cboProducto; // ComboBox para seleccionar el producto
+
 
     // --- Pestaña "Hacer Pedido" ---
     private JTextField txtIdCliente;
@@ -53,44 +54,72 @@ public class MainApp extends JFrame {
     }
 
     private JPanel buildPedidoPanel() {
-        JPanel panel = new JPanel(new BorderLayout(10,10));
-        JPanel form = new JPanel(new GridLayout(0,2,8,8));
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        form.add(new JLabel("ID Cliente:"));
-        txtIdCliente = new JTextField("1");
+        JPanel form = new JPanel(new GridLayout(0, 2, 10, 10));
+        form.setBorder(BorderFactory.createTitledBorder("Datos del Pedido"));
+
+        form.add(new JLabel("Teléfono Cliente:"));
+        txtIdCliente = new JTextField();
+        txtIdCliente.setColumns(10); // Reduce el ancho del campo
+        txtIdCliente.addKeyListener(new KeyAdapter() { // Restringe a solo números
+            @Override
+            public void keyTyped(KeyEvent e) {
+                char c = e.getKeyChar();
+                if (!Character.isDigit(c) && c != KeyEvent.VK_BACK_SPACE) {
+                    e.consume(); // Ignora caracteres no numéricos
+                }
+            }
+        });
         form.add(txtIdCliente);
 
-        form.add(new JLabel("Canal:"));
-        cboCanal = new JComboBox<>(new String[]{"local","web","app"});
+        form.add(new JLabel("Sucursal:"));
+        cboCanal = new JComboBox<>(new String[]{"UVM Cumbres", "Marycake Cintermex"});
         form.add(cboCanal);
 
-        form.add(new JLabel("ID Producto:"));
-        txtIdProducto = new JTextField("1");
-        form.add(txtIdProducto);
+        form.add(new JLabel("Producto:"));
+        cboProducto = new JComboBox<>(new String[]{"Galleta", "Rol", "Brownie"}); // Opciones de productos
+        form.add(cboProducto);
 
         form.add(new JLabel("Cantidad:"));
-        txtCantidad = new JTextField("2");
+        txtCantidad = new JTextField();
+        txtCantidad.setColumns(5); // Reduce el ancho del campo
+        txtCantidad.addKeyListener(new KeyAdapter() { // Restringe a solo números
+            @Override
+            public void keyTyped(KeyEvent e) {
+                char c = e.getKeyChar();
+                if (!Character.isDigit(c) && c != KeyEvent.VK_BACK_SPACE) {
+                    e.consume(); // Ignora caracteres no numéricos
+                }
+            }
+        });
         form.add(txtCantidad);
 
         btnCrearPedido = new JButton("Crear Pedido");
         btnCrearPedido.addActionListener(e -> crearPedido());
 
-        panel.add(form, BorderLayout.NORTH);
-        panel.add(btnCrearPedido, BorderLayout.SOUTH);
+        panel.add(form);
+        panel.add(Box.createVerticalStrut(4));
+        panel.add(btnCrearPedido);
+
         return panel;
     }
 
     private JPanel buildAdminPanel() {
         JPanel container = new JPanel(new CardLayout());
 
-        panelLogin = new JPanel(new GridLayout(0,2,8,8));
-        panelLogin.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panelLogin = new JPanel(new GridLayout(0, 2, 8, 8));
+        panelLogin.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         panelLogin.add(new JLabel("Usuario:"));
         txtUsuario = new JTextField();
+        txtUsuario.setColumns(10); // Reduce el ancho del campo
         panelLogin.add(txtUsuario);
 
         panelLogin.add(new JLabel("Contraseña:"));
-        txtPassword = new JPasswordField();      // Contraseña oculta
+        txtPassword = new JPasswordField();
+        txtPassword.setColumns(10); // Reduce el ancho del campo
         panelLogin.add(txtPassword);
 
         btnLogin = new JButton("Entrar");
@@ -98,7 +127,7 @@ public class MainApp extends JFrame {
         panelLogin.add(new JLabel());
         panelLogin.add(btnLogin);
 
-        panelAdmin = new JPanel(new BorderLayout(10,10));
+        panelAdmin = new JPanel(new BorderLayout(10, 10));
         JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JButton btnCargarPedidos = new JButton("Ver Pedidos");
         btnCargarPedidos.addActionListener(e -> cargarPedidos());
@@ -107,32 +136,45 @@ public class MainApp extends JFrame {
         top.add(btnCargarPedidos);
         top.add(btnCargarIngredientes);
 
-        modelPedidos = new DefaultTableModel(new String[]{"id_pedido","cliente","canal","estado","total","fecha"}, 0);
+        modelPedidos = new DefaultTableModel(new String[]{"id_pedido", "cliente", "canal", "estado", "total", "fecha"}, 0);
         tblPedidos = new JTable(modelPedidos);
 
-        modelIngredientes = new DefaultTableModel(new String[]{"id","nombre","unidad","stock","mínimo","precio","proveedor"}, 0);
+        modelIngredientes = new DefaultTableModel(new String[]{"id", "nombre", "unidad", "stock", "mínimo", "precio", "proveedor"}, 0);
         tblIngredientes = new JTable(modelIngredientes);
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
                 new JScrollPane(tblPedidos), new JScrollPane(tblIngredientes));
         split.setResizeWeight(0.5);
 
-        JPanel bottom = new JPanel(new GridLayout(0,7,6,6));
+        JPanel bottom = new JPanel(new GridLayout(0, 7, 6, 6));
         txtIngNombre = new JTextField();
+        txtIngNombre.setColumns(8); // Reduce el ancho del campo
         txtIngUnidad = new JTextField();
-        txtIngStock  = new JTextField("1000");
-        txtIngMin    = new JTextField("200");
+        txtIngUnidad.setColumns(8); // Reduce el ancho del campo
+        txtIngStock = new JTextField("200");
+        txtIngStock.setColumns(5); // Reduce el ancho del campo
+        txtIngMin = new JTextField("100");
+        txtIngMin.setColumns(5); // Reduce el ancho del campo
         txtIngPrecio = new JTextField("0.02");
+        txtIngPrecio.setColumns(5); // Reduce el ancho del campo
         txtIngProveedor = new JTextField("1");
+        txtIngProveedor.setColumns(5); // Reduce el ancho del campo
         btnAgregarIngrediente = new JButton("Agregar Ingrediente");
 
-        bottom.add(new JLabel("Nombre")); bottom.add(txtIngNombre);
-        bottom.add(new JLabel("Unidad")); bottom.add(txtIngUnidad);
-        bottom.add(new JLabel("Stock"));  bottom.add(txtIngStock);
-        bottom.add(new JLabel("Mín"));    bottom.add(txtIngMin);
-        bottom.add(new JLabel("Precio")); bottom.add(txtIngPrecio);
-        bottom.add(new JLabel("ProvId")); bottom.add(txtIngProveedor);
-        bottom.add(new JLabel());         bottom.add(btnAgregarIngrediente);
+        bottom.add(new JLabel("Nombre"));
+        bottom.add(txtIngNombre);
+        bottom.add(new JLabel("Unidad"));
+        bottom.add(txtIngUnidad);
+        bottom.add(new JLabel("Stock"));
+        bottom.add(txtIngStock);
+        bottom.add(new JLabel("Mín"));
+        bottom.add(txtIngMin);
+        bottom.add(new JLabel("Precio"));
+        bottom.add(txtIngPrecio);
+        bottom.add(new JLabel("ProvId"));
+        bottom.add(txtIngProveedor);
+        bottom.add(new JLabel());
+        bottom.add(btnAgregarIngrediente);
 
         btnAgregarIngrediente.addActionListener(e -> agregarIngrediente());
 
@@ -160,13 +202,26 @@ public class MainApp extends JFrame {
     }
 
     private void crearPedido() {
-        int idCliente = Integer.parseInt(txtIdCliente.getText().trim());
+        String telefono = txtIdCliente.getText().trim();
         String canal = (String) cboCanal.getSelectedItem();
         int idProducto = Integer.parseInt(txtIdProducto.getText().trim());
         int cantidad = Integer.parseInt(txtCantidad.getText().trim());
 
         try (Connection cn = DB.getConnection()) {
             cn.setAutoCommit(false);
+
+            // Buscar ID del cliente usando el número de teléfono
+            int idCliente = 0;
+            try (PreparedStatement ps = cn.prepareStatement("SELECT id_cliente FROM Cliente WHERE telefono = ?")) {
+                ps.setString(1, telefono);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        idCliente = rs.getInt(1);
+                    } else {
+                        throw new SQLException("Cliente no encontrado con el teléfono proporcionado.");
+                    }
+                }
+            }
 
             String sqlPedido = "INSERT INTO Pedido (id_cliente, id_empleado, fecha_pedido, canal, estado, total) " +
                                "VALUES (?, 1, NOW(), ?, 'pendiente', 0.00)";
@@ -285,6 +340,12 @@ public class MainApp extends JFrame {
     }
 
     public static void main(String[] args) {
+        try (Connection cn = DB.getConnection()) {
+            System.out.println("Conexión exitosa a la base de datos.");
+        } catch (SQLException e) {
+            System.err.println("Error al conectar a la base de datos: " + e.getMessage());
+        }
+
         SwingUtilities.invokeLater(() -> {
             new MainApp().setVisible(true);
         });
